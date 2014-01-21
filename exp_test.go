@@ -2,8 +2,10 @@ package sego
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"testing"
+	"time"
 )
 
 const test_news = `北京时间1月20日00:00(英国当地时间19日16:00)，2013/14赛季英格兰[微博]足球超级联赛第22轮一场焦点战在斯坦福桥球场展开争夺，切尔西[微博][微博]主场3比1取胜曼联，埃托奥上演帽子戏法，替补出场的埃尔南德斯扳回一城，维迪奇终场前被红牌罚下。切尔西取得5连胜。曼联联赛客场3连胜被终结。穆里尼奥赢得个人第100场英超[微博]胜利.曼联近11次联赛做客斯坦福桥仅胜1场，其余10战4平6负。各项赛事15次客战切尔西仅胜2场。双方英超历史交锋43场，切尔西取得14胜16平13负，进56球失56球，其中主场8胜8平5负。这是双方历史上第170场交锋，曼联72胜50平47负占据上风；在斯坦福德桥进行的74场比赛中，切尔西取得34胜19平21负。伊万诺维奇伤愈复出，埃托奥轮换出场。新援马蒂奇和伤愈的兰帕德进入替补席。曼联方面，埃文斯、菲尔-琼斯和阿什利-扬轮换首发出场。
@@ -16,6 +18,11 @@ const test_news = `北京时间1月20日00:00(英国当地时间19日16:00)，20
 　　切尔西出场阵容(4-2-3-1)：1-切赫；2-伊万诺维奇，24-卡希尔，26-特里，28-阿兹皮利奎塔；7-拉米雷斯，4-路易斯；22-威廉(86',21-马蒂奇)，11-奥斯卡(68',12-米克尔)，17-阿扎尔；29-埃托奥(79',9-托雷斯)
 　　曼联出场阵容(4-2-3-1)：1-德赫亚；2-拉斐尔，15-维迪奇，6-埃文斯，3-埃弗拉(51',12-斯马林)；16-卡里克，4-菲尔-琼斯；25-瓦伦西亚，44-贾努扎伊，18-阿什利-扬(56',14-埃尔南德斯)；19-维尔贝克`
 
+var (
+	maxFreq        int
+	totalFrequency int64
+)
+
 func Test_Expert(t *testing.T) {
 	var (
 		segmenter Segmenter
@@ -27,9 +34,14 @@ func Test_Expert(t *testing.T) {
 	expSegter.LoadDictionary("./testdata/sports.txt")
 	sw.LoadDictionary("./data/stopwords.txt,./data/hu-sw.txt,./data/china-sw-1208.txt")
 
+	totalFrequency = segmenter.dict.totalFrequency
+	maxFreq = segmenter.dict.maxFrequency + 1
+	t1 := time.Now()
 	segments := segmenter.SegmentWithExp([]byte(test_news), &expSegter, false)
 	fss := sw.Filter(segments, true)
 	ws := uniqueSegs(fss, false)
+	t2 := time.Now()
+	fmt.Println("used: ", t2.Sub(t1))
 	print_wss(ws)
 }
 
@@ -37,6 +49,9 @@ type wordSeg struct {
 	text    string
 	pos     string //词性
 	howmany int
+	freq    int
+	tfidf   float32
+	idf     float32
 }
 
 type wss []*wordSeg
@@ -51,13 +66,14 @@ func (ws wss) Swap(i, j int) {
 }
 
 func (ws wss) Less(i, j int) bool {
-	return ws[i].howmany < ws[j].howmany
+	//return ws[i].howmany < ws[j].howmany
+	return ws[i].tfidf < ws[j].tfidf
 }
 
 func print_wss(ws []*wordSeg) {
 	fmt.Println("How many: ", len(ws))
 	for _, w := range ws {
-		fmt.Println(w.text, w.pos, w.howmany)
+		fmt.Println(w.text, w.pos, w.howmany, w.idf, w.tfidf)
 	}
 }
 
@@ -96,6 +112,9 @@ func uniqueSegs(segs []Segment, searchMode bool) []*wordSeg {
 			output = add_to_map_slice(m, output, ws)
 		}
 	}
+	for _, o := range output {
+		o.tfidf = float32(o.howmany) * o.idf
+	}
 	sort.Sort(wss(output))
 	return output
 }
@@ -111,6 +130,9 @@ func tokenToWordSeg(token *Token) *wordSeg {
 	}
 	ws.pos = token.Pos()
 	ws.howmany = 1
+	ws.freq = token.frequency
+	//ws.idf = float32(math.Log2(float64(totalFrequency / int64(ws.freq))))
+	ws.idf = float32(math.Log2(float64(maxFreq) / float64(ws.freq)))
 
 	return ws
 }

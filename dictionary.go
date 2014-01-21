@@ -11,6 +11,7 @@ type Dictionary struct {
 	numTokens      int      // 词典中分词数目
 	tokens         []*Token // 词典中所有的分词，方便遍历
 	totalFrequency int64    // 词典中所有分词的频率之和
+	maxFrequency   int      // 词典中最大的分词词频，用来模拟idf
 }
 
 // 前缀树节点
@@ -35,6 +36,11 @@ func (dict *Dictionary) TotalFrequency() int64 {
 	return dict.totalFrequency
 }
 
+// 词典中所有分词的频率之和
+func (dict *Dictionary) MaxFrequency() int {
+	return dict.maxFrequency
+}
+
 // 向词典中加入一个分词
 func (dict *Dictionary) addToken(token *Token) {
 	current := &dict.root
@@ -52,6 +58,9 @@ func (dict *Dictionary) addToken(token *Token) {
 		dict.numTokens++
 		dict.tokens = append(dict.tokens, token)
 		dict.totalFrequency += int64(token.frequency)
+		if token.frequency > dict.maxFrequency {
+			dict.maxFrequency = token.frequency
+		}
 	}
 }
 
