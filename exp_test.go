@@ -20,12 +20,16 @@ func Test_Expert(t *testing.T) {
 	var (
 		segmenter Segmenter
 		expSegter ExpSegmenter
+		sw        StopWords
 	)
+
 	segmenter.LoadDictionary("./data/dictionary.txt")
-	expSegter.LoadDictionary("./data/sports.txt")
+	expSegter.LoadDictionary("./testdata/sports.txt")
+	sw.LoadDictionary("./data/stopwords.txt,./data/hu-sw.txt,./data/china-sw-1208.txt")
 
 	segments := segmenter.SegmentWithExp([]byte(test_news), &expSegter, false)
-	ws := clearSegs(segments, false)
+	fss := sw.Filter(segments, true)
+	ws := uniqueSegs(fss, false)
 	print_wss(ws)
 }
 
@@ -56,6 +60,7 @@ func print_wss(ws []*wordSeg) {
 		fmt.Println(w.text, w.pos, w.howmany)
 	}
 }
+
 func add_to_map_slice(m map[string]*wordSeg, s []*wordSeg, ws *wordSeg) []*wordSeg {
 	if ws == nil {
 		return s
@@ -71,7 +76,7 @@ func add_to_map_slice(m map[string]*wordSeg, s []*wordSeg, ws *wordSeg) []*wordS
 	return s
 }
 
-func clearSegs(segs []Segment, searchMode bool) []*wordSeg {
+func uniqueSegs(segs []Segment, searchMode bool) []*wordSeg {
 	output := make([]*wordSeg, 0)
 	m := make(map[string]*wordSeg)
 

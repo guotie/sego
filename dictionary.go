@@ -87,6 +87,46 @@ func (dict *Dictionary) lookupTokens(words []Text, tokens []*Token) int {
 	return numTokens
 }
 
+// 在词典中是否能找到与字元组words完全匹配词
+// 返回值: true or false
+func (dict *Dictionary) lookupEqualWords(words []Text) bool {
+	// 特殊情况
+	if len(words) == 0 {
+		return false
+	}
+
+	current := &dict.root
+	var tk *Token
+	for _, word := range words {
+		// 如果已经抵达叶子节点则不再继续寻找
+		if len(current.children) == 0 {
+			break
+		}
+
+		// 否则在该节点子节点中进行下个字元的匹配
+		index, found := binarySearch(current.children, word)
+		if !found {
+			break
+		}
+
+		// 匹配成功，设置当前token为tk
+		current = current.children[index]
+		if current.token != nil {
+			tk = current.token
+		}
+	}
+
+	if tk == nil {
+		return false
+	}
+	// 完全相同
+	if len(words) == len(tk.text) {
+		return true
+	}
+
+	return false
+}
+
 // 二分法查找字元在子节点中的位置
 // 如果查找成功，第一个返回参数为找到的位置，第二个返回参数为true
 // 如果查找失败，第一个返回参数为应当插入的位置，第二个返回参数false

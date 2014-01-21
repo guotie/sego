@@ -71,7 +71,11 @@ func (seg *Segmenter) internalSegmentWithExp(bytes []byte, es *ExpSegmenter, sea
 	// 划分字元
 	text := splitTextToWords(bytes)
 
-	return seg.segmentWordsWithExp(text, es, searchMode)
+	// 加锁，以后可以增加接口，对专业词汇动态添加
+	es.RLock()
+	ss := seg.segmentWordsWithExp(text, es, searchMode)
+	es.RUnlock()
+	return ss
 }
 
 func (seg *Segmenter) segmentWordsWithExp(text []Text, es *ExpSegmenter, searchMode bool) []Segment {
@@ -96,6 +100,7 @@ func (seg *Segmenter) segmentWordsWithExp(text []Text, es *ExpSegmenter, searchM
 		}
 
 		// 在exp字典中寻找
+		//  专业词汇的优先级最高，一旦找到，则不再对其进行进一步的细分
 		numTokens := es.dict.lookupTokens(
 			text[current:minInt(current+seg.dict.maxTokenLength, len(text))], tokens)
 		if numTokens > 0 {
@@ -105,6 +110,7 @@ func (seg *Segmenter) segmentWordsWithExp(text []Text, es *ExpSegmenter, searchM
 					updateJumper(&jumpers[location], baseDistance, tokens[iToken])
 				}
 			}
+			// 跳过专业词汇
 			current += len(tokens[numTokens-1].text)
 			continue
 		}

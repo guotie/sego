@@ -59,3 +59,18 @@ func TestToken(t *testing.T) {
 	numTokens = dict.lookupTokens(toWords("1", "2", "7", "9"), tokens)
 	expect(t, "", printTokens(tokens, numTokens))
 }
+
+func TestEqualLookup(t *testing.T) {
+	var dict Dictionary
+
+	dict.addToken(&Token{text: toWords("1", "2", "3")})
+	dict.addToken(&Token{text: toWords("1", "2", "3", "4")})
+	dict.addToken(&Token{text: toWords("1", "2", "4")})
+	if dict.lookupEqualWords(toWords("1", "2")) {
+		t.Error("expect not found, but found")
+	}
+
+	if !dict.lookupEqualWords(toWords("1", "2", "3")) {
+		t.Error("expect found, but not found")
+	}
+}
