@@ -6,9 +6,11 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 )
 
 type StopWords struct {
+	sync.RWMutex
 	dict *Dictionary
 }
 
@@ -27,7 +29,7 @@ func (sw *StopWords) LoadDictionary(files string) {
 		dictFile, err := os.Open(file)
 		defer dictFile.Close()
 		if err != nil {
-			log.Fatalf("无法载入字典文件 \"%s\": %s \n", file, err.Error())
+			log.Printf("无法载入字典文件 \"%s\": %s \n", file, err.Error())
 		}
 
 		reader := bufio.NewReader(dictFile)
@@ -49,7 +51,7 @@ func (sw *StopWords) LoadDictionary(files string) {
 		}
 	}
 
-	log.Println("sego词典载入完毕")
+	log.Println("sego停用词词典载入完毕")
 }
 
 // 过滤停用词
@@ -57,6 +59,8 @@ func (sw *StopWords) LoadDictionary(files string) {
 func (sw *StopWords) Filter(segs []Segment, delchar bool) []Segment {
 	ret := make([]Segment, len(segs))
 	kept := 0
+
+	sw.RLock()
 	for _, seg := range segs {
 		if delchar && len(seg.token.text) == 1 {
 			continue
@@ -67,6 +71,7 @@ func (sw *StopWords) Filter(segs []Segment, delchar bool) []Segment {
 			kept++
 		}
 	}
+	sw.RUnlock()
 
 	return ret[0:kept]
 }

@@ -23,7 +23,7 @@ var (
 	totalFrequency int64
 )
 
-func Test_Expert(t *testing.T) {
+func TestExpert(t *testing.T) {
 	var (
 		segmenter Segmenter
 		expSegter ExpSegmenter
@@ -31,7 +31,7 @@ func Test_Expert(t *testing.T) {
 	)
 
 	segmenter.LoadDictionary("./data/dictionary.txt")
-	expSegter.LoadDictionary("./testdata/sports.txt")
+	expSegter.LoadDictionary("./testdata/nilsports.txt")
 	sw.LoadDictionary("./data/stopwords.txt,./data/hu-sw.txt,./data/china-sw-1208.txt")
 
 	totalFrequency = segmenter.dict.totalFrequency

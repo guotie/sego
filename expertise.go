@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"strings"
 	"sync"
 	//"unicode"
 	//"unicode/utf8"
@@ -22,44 +23,46 @@ type ExpSegmenter struct {
 
 // 读取专业词汇文件，并生成词典
 // 专业词汇可以没有频率，类别
-func (seg *ExpSegmenter) LoadDictionary(file string) {
+func (seg *ExpSegmenter) LoadDictionary(files string) {
 	seg.dict = new(Dictionary)
-	log.Printf("载入sego专业词典 %s", file)
-	dictFile, err := os.Open(file)
-	defer dictFile.Close()
-	if err != nil {
-		log.Fatalf("无法载入字典文件 \"%s\" \n", file)
-	}
-
-	reader := bufio.NewReader(dictFile)
-	var text string
-
-	// 逐行读入分词
-	for {
-		size, _ := fmt.Fscanln(reader, &text)
-
-		if size == 0 {
-			// 文件结束
-			break
+	for _, file := range strings.Split(files, ",") {
+		log.Printf("载入sego专业词典 %s", file)
+		dictFile, err := os.Open(file)
+		defer dictFile.Close()
+		if err != nil {
+			log.Fatalf("无法载入字典文件 \"%s\" \n", file)
 		}
 
-		// 将分词添加到字典中
-		words := splitTextToWords([]byte(text))
-		token := Token{text: words, frequency: defaultExpertWordFreq, pos: "exp"}
-		seg.dict.addToken(&token)
-	}
+		reader := bufio.NewReader(dictFile)
+		var text string
 
-	// 计算每个分词的路径值，路径值含义见Token结构体的注释
-	logTotalFrequency := float32(math.Log2(float64(seg.dict.totalFrequency)))
-	for _, token := range seg.dict.tokens {
-		token.distance = logTotalFrequency - float32(math.Log2(float64(token.frequency)))
+		// 逐行读入分词
+		for {
+			size, _ := fmt.Fscanln(reader, &text)
+
+			if size == 0 {
+				// 文件结束
+				break
+			}
+
+			// 将分词添加到字典中
+			words := splitTextToWords([]byte(text))
+			token := Token{text: words, frequency: defaultExpertWordFreq, pos: "exp"}
+			seg.dict.addToken(&token)
+		}
+
+		// 计算每个分词的路径值，路径值含义见Token结构体的注释
+		logTotalFrequency := float32(math.Log2(float64(seg.dict.totalFrequency)))
+		for _, token := range seg.dict.tokens {
+			token.distance = logTotalFrequency - float32(math.Log2(float64(token.frequency)))
+		}
 	}
 
 	log.Println("sego专业词典载入完毕")
 }
 
-func (seg *Segmenter) SegmentWithExp(bytes []byte, es *ExpSegmenter, searchMode bool) []Segment {
-	return seg.internalSegmentWithExp(bytes, es, searchMode)
+func (seg *Segmenter) SegmentWithExp(bytes []byte, es *ExpSegmenter) []Segment {
+	return seg.internalSegmentWithExp(bytes, es, false)
 }
 
 func (seg *Segmenter) internalSegmentWithExp(bytes []byte, es *ExpSegmenter, searchMode bool) []Segment {
