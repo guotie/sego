@@ -19,18 +19,20 @@ const (
 type ExpSegmenter struct {
 	sync.RWMutex
 	Segmenter
+	Newwordfn string
 }
 
 // 读取专业词汇文件，并生成词典
 // 专业词汇可以没有频率，类别
-func (seg *ExpSegmenter) LoadDictionary(files string) {
+func (seg *ExpSegmenter) LoadDictionary(files string) error {
 	seg.dict = new(Dictionary)
 	for _, file := range strings.Split(files, ",") {
 		log.Printf("载入sego专业词典 %s", file)
 		dictFile, err := os.Open(file)
 		defer dictFile.Close()
 		if err != nil {
-			log.Fatalf("无法载入字典文件 \"%s\" \n", file)
+			log.Printf("无法载入字典文件 \"%s\" \n", file)
+			return err
 		}
 
 		reader := bufio.NewReader(dictFile)
@@ -59,6 +61,7 @@ func (seg *ExpSegmenter) LoadDictionary(files string) {
 	}
 
 	log.Println("sego专业词典载入完毕")
+	return nil
 }
 
 func (seg *Segmenter) SegmentWithExp(bytes []byte, es *ExpSegmenter) []Segment {
@@ -163,4 +166,71 @@ func (seg *Segmenter) segmentWordsWithExp(text []Text, es *ExpSegmenter, searchM
 		outputSegments[iSeg].end = bytePosition
 	}
 	return outputSegments
+}
+
+// InitNewWord: 初始化seg的NewWordfn, 如果文件存在, 读取文件的词条; 如果不存在,
+//   创建文件
+func (seg *ExpSegmenter) InitNewWord(fn string) error {
+	seg.Newwordfn = fn
+	err := seg.LoadDictionary(fn)
+	if err == nil {
+		return nil
+	}
+	f, err := os.Create(fn)
+	if err != nil {
+		return err
+	}
+	f.Close()
+	return nil
+}
+
+// NewWord: 向该分词字典中增加一个新词
+//
+// @word: 将要增加的分词
+func (seg *ExpSegmenter) NewWord(st string) error {
+	s := strings.TrimSpace(st)
+	word := splitTextToWords(Text(s))
+	if seg.dict.lookupEqualWords(word) {
+		return fmt.Errorf("duplicate")
+	}
+	// 加入到dict中
+	seg.Lock()
+	seg.dict.addToken(&Token{text: word, frequency: defaultExpertWordFreq, pos: "exp"})
+	seg.Unlock()
+	// 写入newword.txt文件中
+	fn, err := os.OpenFile(seg.Newwordfn, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	defer fn.Close()
+
+	// 读文件的最后一个字节, 如果该字节不为\n, 写入时先写入一个\n字节
+	//
+	fi, err := fn.Stat()
+	if err != nil {
+		return err
+	}
+	fsize := fi.Size()
+	//fmt.Println(fsize)
+	if fsize == 0 {
+		_, err := fn.WriteString(s + "\r\n")
+		return err
+	}
+	var b [1]byte
+	_, err = fn.ReadAt(b[0:1], fsize-1)
+	if err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
+	if b[0] != byte('\n') {
+		_, err := fn.WriteAt([]byte("\r\n"), fsize)
+		if err != nil {
+			fmt.Println(err.Error())
+			return err
+		}
+		fsize++
+	}
+	_, err = fn.WriteAt([]byte(s+"\r\n"), fsize)
+
+	return err
 }

@@ -23,7 +23,7 @@ var (
 	totalFrequency int64
 )
 
-func TestExpert(t *testing.T) {
+func testexpert(t *testing.T) {
 	var (
 		segmenter Segmenter
 		expSegter ExpSegmenter
@@ -37,12 +37,34 @@ func TestExpert(t *testing.T) {
 	totalFrequency = segmenter.dict.totalFrequency
 	maxFreq = segmenter.dict.maxFrequency + 1
 	t1 := time.Now()
-	segments := segmenter.SegmentWithExp([]byte(test_news), &expSegter, false)
+	segments := segmenter.SegmentWithExp([]byte(test_news), &expSegter)
 	fss := sw.Filter(segments, true)
 	ws := uniqueSegs(fss, false)
 	t2 := time.Now()
-	fmt.Println("used: ", t2.Sub(t1))
-	print_wss(ws)
+	_ = t1
+	_ = ws
+	_ = t2
+	//fmt.Println("used: ", t2.Sub(t1))
+	//print_wss(ws)
+}
+
+func TestNewword(t *testing.T) {
+	var (
+		expSegter ExpSegmenter
+	)
+	expSegter.LoadDictionary("./testdata/nilsports.txt")
+	err := expSegter.InitNewWord("./testdata/newword.txt")
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	err = expSegter.NewWord("C罗")
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	err = expSegter.NewWord("法布雷加斯")
+	if err != nil {
+		t.Fatal(err.Error())
+	}
 }
 
 type wordSeg struct {
